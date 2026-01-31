@@ -1,3 +1,24 @@
+server:
+  port: 8080
+
 spring:
   application:
     name: fintrack
+
+  datasource:
+    url: jdbc:postgresql://localhost:5433/fintrack_db
+    username: fintrack
+    password: fintrack
+    driver-class-name: org.postgresql.Driver
+
+  jpa:
+    hibernate:
+      ddl-auto: update   # mientras se desarrolla (luego puedes cambiar a validate)
+    show-sql: true
+    properties:
+      hibernate:
+        format_sql: true
+
+  jackson:
+    serialization:
+      write-dates-as-timestamps: false

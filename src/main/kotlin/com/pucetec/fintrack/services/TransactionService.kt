@@ -6,6 +6,7 @@ import com.pucetec.fintrack.mappers.TransactionMapper
 import com.pucetec.fintrack.models.entities.TransactionType
 import com.pucetec.fintrack.models.requests.CreateTransactionRequest
 import com.pucetec.fintrack.models.requests.ReportRequest
+import com.pucetec.fintrack.models.requests.UpdateTransactionRequest
 import com.pucetec.fintrack.models.responses.ReportResponse
 import com.pucetec.fintrack.models.responses.TransactionResponse
 import com.pucetec.fintrack.repositories.CategoryRepository
@@ -13,6 +14,7 @@ import com.pucetec.fintrack.repositories.TransactionRepository
 import com.pucetec.fintrack.repositories.UserRepository
 import org.springframework.stereotype.Service
 import java.math.BigDecimal
+import java.time.Instant
 import java.util.UUID
 
 @Service
@@ -29,16 +31,13 @@ class TransactionService(
         val category = categoryRepository.findById(req.categoryId)
             .orElseThrow { NotFoundException("Category", req.categoryId.toString()) }
 
-        // Regla: categoría debe pertenecer al mismo user
         if (category.user.id != user.id) {
             throw BusinessException("Category does not belong to the user")
         }
 
-        // Regla: amount positivo (igual ya lo valida @Positive, pero en service igual por coverage)
         if (req.amount <= BigDecimal.ZERO) {
             throw BusinessException("Amount must be greater than 0")
         }
-
 
         val entity = TransactionMapper.toEntity(req, user, category)
         val saved = transactionRepository.save(entity)
@@ -54,7 +53,6 @@ class TransactionService(
     }
 
     fun listByUser(userId: UUID): List<TransactionResponse> {
-        // 404 consistente si el user no existe
         userRepository.findById(userId)
             .orElseThrow { NotFoundException("User", userId.toString()) }
 
@@ -63,7 +61,6 @@ class TransactionService(
     }
 
     fun listByCategory(categoryId: UUID): List<TransactionResponse> {
-        // 404 consistente si category no existe
         categoryRepository.findById(categoryId)
             .orElseThrow { NotFoundException("Category", categoryId.toString()) }
 
@@ -72,7 +69,6 @@ class TransactionService(
     }
 
     fun report(req: ReportRequest): ReportResponse {
-        // 404 consistente si el user no existe
         userRepository.findById(req.userId)
             .orElseThrow { NotFoundException("User", req.userId.toString()) }
 
@@ -87,11 +83,11 @@ class TransactionService(
         )
 
         val totalIncome = list
-            .filter { it.type == TransactionType.INCOME }   // <-- ajusta si tu enum difiere
+            .filter { it.type == TransactionType.INCOME }
             .fold(BigDecimal.ZERO) { acc, t -> acc + t.amount }
 
         val totalExpense = list
-            .filter { it.type == TransactionType.EXPENSE }  // <-- ajusta si tu enum difiere
+            .filter { it.type == TransactionType.EXPENSE }
             .fold(BigDecimal.ZERO) { acc, t -> acc + t.amount }
 
         val balance = totalIncome - totalExpense
@@ -102,5 +98,38 @@ class TransactionService(
             totalExpense = totalExpense,
             balance = balance
         )
+    }
+
+    fun update(id: UUID, req: UpdateTransactionRequest): TransactionResponse {
+        val trx = transactionRepository.findById(id)
+            .orElseThrow { NotFoundException("Transaction", id.toString()) }
+
+        val hasAnyField = (req.amount != null) || (req.description != null)
+        if (!hasAnyField) {
+            throw BusinessException("At least one field must be provided")
+        }
+
+        if (req.amount != null) {
+            if (req.amount <= BigDecimal.ZERO) {
+                throw BusinessException("Amount must be greater than 0")
+            }
+            trx.amount = req.amount
+        }
+
+        if (req.description != null) {
+            trx.description = req.description.trim()
+        }
+
+        trx.updatedAt = Instant.now()
+
+        val saved = transactionRepository.save(trx)
+        return TransactionMapper.toResponse(saved)
+    }
+
+    fun delete(id: UUID) {
+        val trx = transactionRepository.findById(id)
+            .orElseThrow { NotFoundException("Transaction", id.toString()) }
+
+        transactionRepository.delete(trx)
     }
 }
