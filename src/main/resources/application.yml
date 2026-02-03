@@ -6,7 +6,7 @@ spring:
     name: fintrack
 
   datasource:
-    url: jdbc:postgresql://localhost:5433/fintrack_db
+    url: jdbc:postgresql://localhost:5440/fintrack_db
     username: fintrack
     password: fintrack
     driver-class-name: org.postgresql.Driver
@@ -18,7 +18,3 @@ spring:
     properties:
       hibernate:
         format_sql: true
-
-  jackson:
-    serialization:
-      write-dates-as-timestamps: false

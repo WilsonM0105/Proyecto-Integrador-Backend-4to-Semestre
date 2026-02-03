@@ -76,7 +76,7 @@ class TransactionService(
             throw BusinessException("endDate must be >= startDate")
         }
 
-        val list = transactionRepository.findAllByUser_IdAndDateBetween(
+        val list = transactionRepository.findAllByUser_IdAndTrxDateBetween(
             userId = req.userId,
             start = req.startDate,
             end = req.endDate

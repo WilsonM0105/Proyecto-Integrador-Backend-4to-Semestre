@@ -18,12 +18,15 @@ import org.junit.jupiter.api.assertThrows
 import org.mockito.ArgumentMatchers
 import org.mockito.Mockito.`when`
 import org.mockito.Mockito.mock
+import org.mockito.Mockito.verify
+import org.mockito.Mockito.times
+import org.mockito.Mockito.never
 import java.math.BigDecimal
 import java.time.LocalDate
 import java.util.Optional
 import java.util.UUID
 import kotlin.test.assertEquals
-import kotlin.test.assertTrue
+import kotlin.test.assertNull
 
 class TransactionServiceTest {
 
@@ -51,18 +54,8 @@ class TransactionServiceTest {
         val userId = UUID.randomUUID()
         val categoryId = UUID.randomUUID()
 
-        val user = User(
-            id = userId,
-            fullName = "Wilson",
-            email = "wilson@mail.com"
-        )
-
-        val category = Category(
-            id = categoryId,
-            user = user,
-            name = "Sueldo",
-            isIncome = true
-        )
+        val user = User(id = userId, fullName = "Wilson", email = "wilson@mail.com")
+        val category = Category(id = categoryId, user = user, name = "Sueldo", isIncome = true)
 
         val request = CreateTransactionRequest(
             userId = userId,
@@ -94,6 +87,8 @@ class TransactionServiceTest {
         assertEquals(categoryId, response.categoryId)
         assertEquals(BigDecimal("100.00"), response.amount)
         assertEquals(TransactionType.INCOME, response.type)
+
+        verify(transactionRepositoryMock, times(1)).save(ArgumentMatchers.any(Transaction::class.java))
     }
 
     @Test
@@ -111,6 +106,8 @@ class TransactionServiceTest {
         assertThrows<NotFoundException> {
             transactionService.create(request)
         }
+
+        verify(transactionRepositoryMock, never()).save(ArgumentMatchers.any(Transaction::class.java))
     }
 
     @Test
@@ -134,6 +131,8 @@ class TransactionServiceTest {
         assertThrows<NotFoundException> {
             transactionService.create(request)
         }
+
+        verify(transactionRepositoryMock, never()).save(ArgumentMatchers.any(Transaction::class.java))
     }
 
     @Test
@@ -145,12 +144,7 @@ class TransactionServiceTest {
         val user = User(id = userId, fullName = "User", email = "u@mail.com")
         val otherUser = User(id = otherUserId, fullName = "Other", email = "o@mail.com")
 
-        val category = Category(
-            id = categoryId,
-            user = otherUser,
-            name = "Comida",
-            isIncome = false
-        )
+        val category = Category(id = categoryId, user = otherUser, name = "Comida", isIncome = false)
 
         val request = CreateTransactionRequest(
             userId = userId,
@@ -166,6 +160,8 @@ class TransactionServiceTest {
         assertThrows<BusinessException> {
             transactionService.create(request)
         }
+
+        verify(transactionRepositoryMock, never()).save(ArgumentMatchers.any(Transaction::class.java))
     }
 
     @Test
@@ -174,13 +170,7 @@ class TransactionServiceTest {
         val categoryId = UUID.randomUUID()
 
         val user = User(id = userId, fullName = "W", email = "w@mail.com")
-
-        val category = Category(
-            id = categoryId,
-            user = user,
-            name = "Comida",
-            isIncome = false
-        )
+        val category = Category(id = categoryId, user = user, name = "Comida", isIncome = false)
 
         val request = CreateTransactionRequest(
             userId = userId,
@@ -196,6 +186,9 @@ class TransactionServiceTest {
         assertThrows<BusinessException> {
             transactionService.create(request)
         }
+
+        // opcional pero pro:
+        verify(transactionRepositoryMock, never()).save(ArgumentMatchers.any(Transaction::class.java))
     }
 
     @Test
@@ -240,7 +233,6 @@ class TransactionServiceTest {
     fun `SHOULD list transactions by user GIVEN existing user`() {
         val userId = UUID.randomUUID()
         val user = User(id = userId, fullName = "W", email = "w@mail.com")
-
         val category = Category(user = user, name = "Comida", isIncome = false)
 
         val list = listOf(
@@ -255,6 +247,7 @@ class TransactionServiceTest {
 
         assertEquals(2, response.size)
         assertEquals(BigDecimal("2.00"), response[0].amount)
+        verify(transactionRepositoryMock, times(1)).findAllByUser_Id(userId)
     }
 
     @Test
@@ -266,6 +259,8 @@ class TransactionServiceTest {
         assertThrows<NotFoundException> {
             transactionService.listByUser(userId)
         }
+
+        verify(transactionRepositoryMock, never()).findAllByUser_Id(userId)
     }
 
     @Test
@@ -287,6 +282,7 @@ class TransactionServiceTest {
         assertEquals(1, response.size)
         assertEquals(BigDecimal("7.00"), response[0].amount)
         assertEquals(categoryId, response[0].categoryId)
+        verify(transactionRepositoryMock, times(1)).findAllByCategory_Id(categoryId)
     }
 
     @Test
@@ -298,6 +294,8 @@ class TransactionServiceTest {
         assertThrows<NotFoundException> {
             transactionService.listByCategory(categoryId)
         }
+
+        verify(transactionRepositoryMock, never()).findAllByCategory_Id(categoryId)
     }
 
     @Test
@@ -317,7 +315,7 @@ class TransactionServiceTest {
         )
 
         `when`(userRepositoryMock.findById(userId)).thenReturn(Optional.of(user))
-        `when`(transactionRepositoryMock.findAllByUser_IdAndDateBetween(userId, start, end)).thenReturn(list)
+        `when`(transactionRepositoryMock.findAllByUser_IdAndTrxDateBetween(userId, start, end)).thenReturn(list)
 
         val response = transactionService.report(
             ReportRequest(userId = userId, startDate = start, endDate = end)
@@ -326,23 +324,25 @@ class TransactionServiceTest {
         assertEquals(BigDecimal("100.00"), response.totalIncome)
         assertEquals(BigDecimal("40.00"), response.totalExpense)
         assertEquals(BigDecimal("60.00"), response.balance)
+
+        verify(transactionRepositoryMock, times(1)).findAllByUser_IdAndTrxDateBetween(userId, start, end)
     }
 
     @Test
     fun `SHOULD return NotFoundException GIVEN user does not exist on report`() {
         val userId = UUID.randomUUID()
+        val start = LocalDate.now().minusDays(1)
+        val end = LocalDate.now()
 
         `when`(userRepositoryMock.findById(userId)).thenReturn(Optional.empty())
 
         assertThrows<NotFoundException> {
             transactionService.report(
-                ReportRequest(
-                    userId = userId,
-                    startDate = LocalDate.now().minusDays(1),
-                    endDate = LocalDate.now()
-                )
+                ReportRequest(userId = userId, startDate = start, endDate = end)
             )
         }
+
+        verify(transactionRepositoryMock, never()).findAllByUser_IdAndTrxDateBetween(userId, start, end)
     }
 
     @Test
@@ -395,6 +395,8 @@ class TransactionServiceTest {
         assertEquals(BigDecimal("25.50"), response.amount)
         assertEquals("nueva desc", response.description)
         assertEquals(trxId, response.id)
+
+        verify(transactionRepositoryMock, times(1)).save(ArgumentMatchers.any(Transaction::class.java))
     }
 
     @Test
@@ -480,6 +482,7 @@ class TransactionServiceTest {
 
         val user = User(fullName = "W", email = "w@mail.com")
         val category = Category(user = user, name = "Comida", isIncome = false)
+
         val trx = Transaction(
             id = trxId,
             user = user,
@@ -494,6 +497,8 @@ class TransactionServiceTest {
         assertThrows<BusinessException> {
             transactionService.update(trxId, UpdateTransactionRequest(amount = null, description = null))
         }
+
+        verify(transactionRepositoryMock, never()).save(ArgumentMatchers.any(Transaction::class.java))
     }
 
     @Test
@@ -502,6 +507,7 @@ class TransactionServiceTest {
 
         val user = User(fullName = "W", email = "w@mail.com")
         val category = Category(user = user, name = "Comida", isIncome = false)
+
         val trx = Transaction(
             id = trxId,
             user = user,
@@ -516,6 +522,39 @@ class TransactionServiceTest {
         assertThrows<BusinessException> {
             transactionService.update(trxId, UpdateTransactionRequest(amount = BigDecimal.ZERO, description = "x"))
         }
+
+        verify(transactionRepositoryMock, never()).save(ArgumentMatchers.any(Transaction::class.java))
+    }
+
+    @Test
+    fun `SHOULD update description to empty string GIVEN description is only spaces`() {
+        val trxId = UUID.randomUUID()
+
+        val user = User(fullName = "W", email = "w@mail.com")
+        val category = Category(user = user, name = "Comida", isIncome = false)
+
+        val trx = Transaction(
+            id = trxId,
+            user = user,
+            category = category,
+            type = TransactionType.EXPENSE,
+            amount = BigDecimal("10.00"),
+            description = "old",
+            trxDate = LocalDate.now()
+        )
+
+        val req = UpdateTransactionRequest(
+            amount = null,
+            description = "     "
+        )
+
+        `when`(transactionRepositoryMock.findById(trxId)).thenReturn(Optional.of(trx))
+        `when`(transactionRepositoryMock.save(ArgumentMatchers.any(Transaction::class.java)))
+            .thenAnswer { it.arguments[0] as Transaction }
+
+        val response = transactionService.update(trxId, req)
+
+        assertEquals("", response.description)
     }
 
     @Test
@@ -537,7 +576,7 @@ class TransactionServiceTest {
 
         transactionService.delete(trxId)
 
-        assertTrue(true)
+        verify(transactionRepositoryMock, times(1)).delete(trx)
     }
 
     @Test
@@ -549,5 +588,7 @@ class TransactionServiceTest {
         assertThrows<NotFoundException> {
             transactionService.delete(trxId)
         }
+
+        verify(transactionRepositoryMock, never()).delete(ArgumentMatchers.any(Transaction::class.java))
     }
 }
