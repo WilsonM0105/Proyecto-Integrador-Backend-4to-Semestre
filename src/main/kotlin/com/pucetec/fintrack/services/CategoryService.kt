@@ -33,7 +33,6 @@ class CategoryService(
     }
 
     fun listByUser(userId: UUID): List<CategoryResponse> {
-        // 404 consistente si el user no existe
         userRepository.findById(userId)
             .orElseThrow { NotFoundException("User", userId.toString()) }
 

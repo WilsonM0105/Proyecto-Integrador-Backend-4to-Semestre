@@ -12,7 +12,7 @@ object CategoryMapper {
         return Category(
             user = user,
             name = req.name.trim(),
-            isIncome = req.isIncome,
+            type = req.type,
             createdAt = Instant.now(),
             updatedAt = Instant.now()
         )
@@ -23,7 +23,7 @@ object CategoryMapper {
             id = entity.id,
             userId = entity.user.id,
             name = entity.name,
-            isIncome = entity.isIncome,
+            type = entity.type,
             createdAt = entity.createdAt,
             updatedAt = entity.updatedAt
         )

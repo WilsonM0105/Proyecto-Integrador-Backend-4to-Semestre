@@ -23,8 +23,9 @@ class Category(
     @Column(nullable = false)
     var name: String,
 
-    @Column(name = "is_income", nullable = false)
-    var isIncome: Boolean,
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
+    var type: TransactionType,
 
     @Column(nullable = false)
     var createdAt: Instant = Instant.now(),

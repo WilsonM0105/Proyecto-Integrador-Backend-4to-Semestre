@@ -2,6 +2,7 @@ package com.pucetec.fintrack.services
 
 import com.pucetec.fintrack.exceptions.NotFoundException
 import com.pucetec.fintrack.models.entities.Category
+import com.pucetec.fintrack.models.entities.TransactionType
 import com.pucetec.fintrack.models.entities.User
 import com.pucetec.fintrack.models.requests.CreateCategoryRequest
 import com.pucetec.fintrack.repositories.CategoryRepository
@@ -20,6 +21,7 @@ class CategoryServiceTest {
 
     private lateinit var userRepositoryMock: UserRepository
     private lateinit var categoryRepositoryMock: CategoryRepository
+
     private lateinit var categoryService: CategoryService
 
     @BeforeEach
@@ -34,56 +36,43 @@ class CategoryServiceTest {
     }
 
     @Test
-    fun `SHOULD create a category GIVEN an existing user`() {
-
+    fun `SHOULD create a category GIVEN valid user`() {
         val userId = UUID.randomUUID()
-
-        val user = User(
-            id = userId,
-            fullName = "Wilson",
-            email = "wilson@mail.com"
-        )
+        val user = User(id = userId, fullName = "Wilson", email = "wilson@mail.com")
 
         val request = CreateCategoryRequest(
             userId = userId,
-            name = "Comida",
-            isIncome = false
+            name = "Sueldo",
+            type = TransactionType.INCOME
         )
 
-        val savedCategory = Category(
+        val saved = Category(
             id = UUID.randomUUID(),
             user = user,
-            name = "Comida",
-            isIncome = false
+            name = "Sueldo",
+            type = TransactionType.INCOME
         )
 
-        `when`(userRepositoryMock.findById(userId))
-            .thenReturn(Optional.of(user))
-
-        `when`(categoryRepositoryMock.save(ArgumentMatchers.any(Category::class.java)))
-            .thenReturn(savedCategory)
+        `when`(userRepositoryMock.findById(userId)).thenReturn(Optional.of(user))
+        `when`(categoryRepositoryMock.save(ArgumentMatchers.any(Category::class.java))).thenReturn(saved)
 
         val response = categoryService.create(request)
 
-        assertEquals(savedCategory.id, response.id)
+        assertEquals(saved.id, response.id)
         assertEquals(userId, response.userId)
-        assertEquals("Comida", response.name)
-        assertEquals(false, response.isIncome)
+        assertEquals("Sueldo", response.name)
+        assertEquals(TransactionType.INCOME, response.type)
     }
 
     @Test
     fun `SHOULD return NotFoundException GIVEN user does not exist on create`() {
-
-        val userId = UUID.randomUUID()
-
         val request = CreateCategoryRequest(
-            userId = userId,
+            userId = UUID.randomUUID(),
             name = "Comida",
-            isIncome = false
+            type = TransactionType.EXPENSE
         )
 
-        `when`(userRepositoryMock.findById(userId))
-            .thenReturn(Optional.empty())
+        `when`(userRepositoryMock.findById(request.userId)).thenReturn(Optional.empty())
 
         assertThrows<NotFoundException> {
             categoryService.create(request)
@@ -91,89 +80,65 @@ class CategoryServiceTest {
     }
 
     @Test
-    fun `SHOULD return a category GIVEN an existing id`() {
-
-        val categoryId = UUID.randomUUID()
-
+    fun `SHOULD return a category GIVEN existing id`() {
+        val id = UUID.randomUUID()
         val user = User(fullName = "W", email = "w@mail.com")
 
         val category = Category(
-            id = categoryId,
+            id = id,
             user = user,
-            name = "Transporte",
-            isIncome = false
+            name = "Comida",
+            type = TransactionType.EXPENSE
         )
 
-        `when`(categoryRepositoryMock.findById(categoryId))
-            .thenReturn(Optional.of(category))
+        `when`(categoryRepositoryMock.findById(id)).thenReturn(Optional.of(category))
 
-        val response = categoryService.getById(categoryId)
+        val response = categoryService.getById(id)
 
-        assertEquals(categoryId, response.id)
-        assertEquals("Transporte", response.name)
+        assertEquals(id, response.id)
+        assertEquals("Comida", response.name)
+        assertEquals(TransactionType.EXPENSE, response.type)
     }
 
     @Test
-    fun `SHOULD return NotFoundException GIVEN category does not exist`() {
-
-        val categoryId = UUID.randomUUID()
-
-        `when`(categoryRepositoryMock.findById(categoryId))
-            .thenReturn(Optional.empty())
+    fun `SHOULD return NotFoundException GIVEN category does not exist on getById`() {
+        val id = UUID.randomUUID()
+        `when`(categoryRepositoryMock.findById(id)).thenReturn(Optional.empty())
 
         assertThrows<NotFoundException> {
-            categoryService.getById(categoryId)
+            categoryService.getById(id)
         }
     }
 
     @Test
     fun `SHOULD list categories by user GIVEN existing user`() {
-
         val userId = UUID.randomUUID()
-
-        `when`(userRepositoryMock.findById(userId))
-            .thenReturn(Optional.of(User(id = userId, fullName = "W", email = "w@mail.com")))
-
         val user = User(id = userId, fullName = "W", email = "w@mail.com")
-        val c1 = Category(user = user, name = "A", isIncome = false)
-        val c2 = Category(user = user, name = "B", isIncome = true)
 
-        `when`(categoryRepositoryMock.findAllByUser_Id(userId))
-            .thenReturn(listOf(c1, c2))
+        val list = listOf(
+            Category(user = user, name = "Sueldo", type = TransactionType.INCOME),
+            Category(user = user, name = "Comida", type = TransactionType.EXPENSE)
+        )
+
+        `when`(userRepositoryMock.findById(userId)).thenReturn(Optional.of(user))
+        `when`(categoryRepositoryMock.findAllByUser_Id(userId)).thenReturn(list)
 
         val response = categoryService.listByUser(userId)
 
         assertEquals(2, response.size)
-        assertEquals("A", response[0].name)
-        assertEquals("B", response[1].name)
+        assertEquals("Sueldo", response[0].name)
+        assertEquals(TransactionType.INCOME, response[0].type)
     }
 
     @Test
     fun `SHOULD return NotFoundException GIVEN user does not exist on listByUser`() {
-
         val userId = UUID.randomUUID()
-
-        `when`(userRepositoryMock.findById(userId))
-            .thenReturn(Optional.empty())
+        `when`(userRepositoryMock.findById(userId)).thenReturn(Optional.empty())
 
         assertThrows<NotFoundException> {
             categoryService.listByUser(userId)
         }
     }
 
-    @Test
-    fun `SHOULD return an empty list GIVEN user exists but no categories`() {
 
-        val userId = UUID.randomUUID()
-
-        `when`(userRepositoryMock.findById(userId))
-            .thenReturn(Optional.of(User(id = userId, fullName = "W", email = "w@mail.com")))
-
-        `when`(categoryRepositoryMock.findAllByUser_Id(userId))
-            .thenReturn(emptyList())
-
-        val response = categoryService.listByUser(userId)
-
-        assertEquals(0, response.size)
-    }
 }

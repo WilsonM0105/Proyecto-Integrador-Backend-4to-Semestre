@@ -11,6 +11,9 @@ spring:
     password: fintrack
     driver-class-name: org.postgresql.Driver
 
+  jackson:
+    property-naming-strategy: SNAKE_CASE
+
   jpa:
     hibernate:
       ddl-auto: update   # mientras se desarrolla (luego puedes cambiar a validate)

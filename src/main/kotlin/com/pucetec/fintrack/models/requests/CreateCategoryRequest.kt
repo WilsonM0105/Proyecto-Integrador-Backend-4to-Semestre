@@ -1,5 +1,6 @@
 package com.pucetec.fintrack.models.requests
 
+import com.pucetec.fintrack.models.entities.TransactionType
 import jakarta.validation.constraints.NotBlank
 import jakarta.validation.constraints.NotNull
 import java.util.UUID
@@ -11,5 +12,6 @@ data class CreateCategoryRequest(
     @field:NotBlank
     val name: String,
 
-    val isIncome: Boolean
+    @field:NotNull
+    val type: TransactionType
 )

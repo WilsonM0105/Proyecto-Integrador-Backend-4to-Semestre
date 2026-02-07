@@ -13,7 +13,7 @@ data class TransactionResponse(
     val categoryName: String,
     val type: TransactionType,
     val amount: BigDecimal,
-    val trxDate: LocalDate,
+    val transactionDate: LocalDate,
     val description: String?,
     val createdAt: Instant,
     val updatedAt: Instant

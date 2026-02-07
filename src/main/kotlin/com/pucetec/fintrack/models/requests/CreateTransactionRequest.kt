@@ -17,7 +17,7 @@ data class CreateTransactionRequest(
     val amount: BigDecimal,
 
     @field:NotNull
-    val trxDate: LocalDate,
+    val transactionDate: LocalDate,
 
     val description: String?
 )

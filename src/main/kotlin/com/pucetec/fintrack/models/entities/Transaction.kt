@@ -32,7 +32,7 @@ class Transaction(
     var description: String? = null,
 
     @Column(name = "trx_date", nullable = false)
-    var trxDate: LocalDate,
+    var transactionDate: LocalDate,
 
     @Column(nullable = true)
     var note: String? = null,
